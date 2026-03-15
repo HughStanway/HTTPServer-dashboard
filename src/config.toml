@@ -1,0 +1,12 @@
+[ports]
+server_port = 443
+
+[https]
+enable_https = true
+cert_file = ".env/cert.pem"
+key_file = ".env/key.pem"
+enable_http_redirection = false
+
+[logging]
+log_level = "INFO"
+file_logging_enabled = false
