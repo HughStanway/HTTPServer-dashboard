@@ -48,3 +48,6 @@ build*/
 
 # Environment variables
 .env/
+
+# Other
+.DS_Store

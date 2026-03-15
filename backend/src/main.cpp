@@ -1,6 +1,6 @@
 #include <httpserver>
 
-#include "auth.h"
+#include "auth/auth.h"
 
 #include <fstream>
 #include <iostream>
@@ -17,7 +17,7 @@ int main() {
     }
 
     // Initialize server
-    HTTPServer::Server server("src/config.toml");
+    HTTPServer::Server server("backend/src/config.toml");
     server.installSignalHandlers();
 
     // 1. API: Metrics Endpoint

@@ -3,7 +3,7 @@
 all: frontend backend
 
 backend:
-	mkdir -p build && cd build && cmake .. && make
+	mkdir -p build && cd build && cmake ../backend && make
 
 frontend:
 	cd frontend && npm install && npm run build
