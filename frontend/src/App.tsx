@@ -439,7 +439,7 @@ function App() {
         </SquareCard>
 
         {/* Processing Efficiency */}
-        <SquareCard title="Processing Efficiency" subtitle="Requests processed per sec of CPU time" delay={0.7}>
+        <SquareCard title="Processing Efficiency" subtitle="Current requests processed per second of CPU time" delay={0.7}>
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={history}>
               <defs>
@@ -462,9 +462,9 @@ function App() {
           {statusData.length > 0 ? (
             <>
               <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <ResponsiveContainer width="100%" height={150}>
+                <ResponsiveContainer width="100%" height={75}>
                   <PieChart>
-                    <Pie data={statusData} cx="50%" cy="50%" innerRadius={40} outerRadius={62} paddingAngle={3} dataKey="value" animationDuration={800}>
+                    <Pie data={statusData} cx="50%" cy="50%" innerRadius={25} outerRadius={37} paddingAngle={3} dataKey="value" animationDuration={800}>
                       {statusData.map((entry, i) => (
                         <Cell key={i} fill={entry.color} stroke="none" />
                       ))}
@@ -490,6 +490,11 @@ function App() {
           )}
         </SquareCard>
       </div>
+
+      {/* ── Footer ─────────────────────────────────────────────────────── */}
+      <footer style={{ marginTop: 36, paddingBottom: 6, textAlign: 'center', fontSize: 12, color: '#7b809a' }}>
+        HTTPServer Metrics Dashboard
+      </footer>
     </div>
   );
 }
