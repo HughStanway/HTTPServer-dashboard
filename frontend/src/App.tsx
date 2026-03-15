@@ -16,6 +16,8 @@ import {
   Cpu,
   Upload,
   Download,
+  Lock,
+  LogIn,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -78,6 +80,7 @@ const MAX_HISTORY = 30;
 
 // ─── Main App ───────────────────────────────────────────────────────────────────
 function App() {
+  const [auth, setAuth] = useState<string | null>(() => sessionStorage.getItem('dashboard_auth'));
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [history, setHistory] = useState<TimeseriesPoint[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -86,8 +89,19 @@ function App() {
   const prevTimestamp = useRef<number>(Date.now());
 
   const fetchMetrics = useCallback(async () => {
+    if (!auth) return;
+
     try {
-      const response = await fetch('/api/metrics');
+      const response = await fetch('/api/metrics', {
+        headers: { 'Authorization': auth }
+      });
+
+      if (response.status === 401) {
+        setAuth(null);
+        sessionStorage.removeItem('dashboard_auth');
+        return;
+      }
+
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data: Metrics = await response.json();
       const now = Date.now();
@@ -108,11 +122,8 @@ function App() {
         const errorDelta = (data.responses4xx + data.responses5xx) - (prev.responses4xx + prev.responses5xx);
         const errorRate = reqDelta > 0 ? (errorDelta / reqDelta) * 100 : 0;
 
-        // Avg sizes per interval
         const avgReqSize = reqDelta > 0 ? recvDelta / reqDelta : 0;
         const avgResSize = reqDelta > 0 ? sentDelta / reqDelta : 0;
-
-        // Processing efficiency: requests processed per second of CPU time
         const efficiency = processingDelta > 0 ? (reqDelta / (processingDelta / 1000)) : 0;
 
         const timeLabel = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -140,13 +151,31 @@ function App() {
       console.error(err);
       setError('Connection lost. Retrying...');
     }
-  }, []);
+  }, [auth]);
 
   useEffect(() => {
-    fetchMetrics();
-    const id = setInterval(fetchMetrics, POLL_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, [fetchMetrics]);
+    if (auth) {
+      fetchMetrics();
+      const id = setInterval(fetchMetrics, POLL_INTERVAL_MS);
+      return () => clearInterval(id);
+    }
+  }, [fetchMetrics, auth]);
+
+  // Handle Login
+  const handleLogin = (base64Auth: string) => {
+    setAuth(base64Auth);
+    sessionStorage.setItem('dashboard_auth', base64Auth);
+  };
+
+  const handleLogout = () => {
+    setAuth(null);
+    sessionStorage.removeItem('dashboard_auth');
+  };
+
+  // ── Auth Screen ─────────────────────────────────────────────────────────────
+  if (!auth) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
 
   // ── Derived ─────────────────────────────────────────────────────────────────
   const latest = history.length > 0 ? history[history.length - 1] : null;
@@ -164,7 +193,6 @@ function App() {
     ? ((metrics.responses2xx / totalResponses) * 100).toFixed(1)
     : '100.0';
 
-  // Cumulative derived metrics
   const avgReqSizeCumulative = metrics && metrics.totalRequests > 0
     ? metrics.bytesReceived / metrics.totalRequests : 0;
   const avgResSizeCumulative = metrics && metrics.totalRequests > 0
@@ -174,7 +202,6 @@ function App() {
   const processingEfficiency = metrics && metrics.totalProcessingTimeMs > 0
     ? (metrics.totalRequests / (metrics.totalProcessingTimeMs / 1000)).toFixed(1) : '0';
 
-  // Uptime
   const uptimeSec = Math.floor((Date.now() - startTime) / 1000);
   const uptimeStr = uptimeSec < 60 ? `${uptimeSec}s`
     : uptimeSec < 3600 ? `${Math.floor(uptimeSec / 60)}m ${uptimeSec % 60}s`
@@ -224,6 +251,12 @@ function App() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px', background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: 8, fontSize: 12, fontWeight: 500, color: '#7b809a' }}>
             ⏱ {uptimeStr}
           </div>
+          <button
+            onClick={handleLogout}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px', background: '#fff', border: '1px solid #e9ecef', borderRadius: 8, fontSize: 12, fontWeight: 500, color: '#344767', cursor: 'pointer' }}
+          >
+            <Lock size={14} /> Logout
+          </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, fontSize: 12, fontWeight: 500, color: '#15803d' }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }} />
             Live
@@ -267,7 +300,7 @@ function App() {
         />
       </div>
 
-      {/* ── Summary Cards Row 2 (New Derived Metrics) ──────────────────── */}
+      {/* ── Summary Cards Row 2 ────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 28, marginBottom: 32 }}>
         <MetricCard
           title="Avg Request Size"
@@ -303,7 +336,7 @@ function App() {
         />
       </div>
 
-      {/* ── 3-Column Grid of Chart Cards ───────────────────────────────── */}
+      {/* ── 4-Column Grid of Chart Cards ───────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 28 }}>
 
         {/* RPS */}
@@ -491,10 +524,71 @@ function App() {
         </SquareCard>
       </div>
 
-      {/* ── Footer ─────────────────────────────────────────────────────── */}
       <footer style={{ marginTop: 36, paddingBottom: 6, textAlign: 'center', fontSize: 12, color: '#7b809a' }}>
         HTTPServer Metrics Dashboard
       </footer>
+    </div>
+  );
+}
+
+// ─── Login Screen ─────────────────────────────────────────────────────────────
+
+function LoginScreen({ onLogin }: { onLogin: (auth: string) => void }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const credentials = btoa(`${username}:${password}`);
+    onLogin(`Basic ${credentials}`);
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f9fa' }}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        style={{ width: '100%', maxWidth: 400, padding: 40, background: '#fff', borderRadius: 24, boxShadow: '0 20px 40px rgba(0,0,0,0.05)', border: '1px solid #e9ecef' }}
+      >
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <div style={{ width: 64, height: 64, borderRadius: 16, background: 'linear-gradient(135deg, #344767, #4a6fa5)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#fff' }}>
+            <Lock size={32} />
+          </div>
+          <h2 style={{ fontSize: 24, fontWeight: 700, color: '#344767', margin: '0 0 8px' }}>Admin Login</h2>
+          <p style={{ fontSize: 14, color: '#7b809a', margin: 0 }}>Enter credentials to access dashboard</p>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#344767', marginLeft: 4 }}>Username</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              style={{ padding: '12px 16px', borderRadius: 12, border: '1px solid #d2d6da', fontSize: 14, outline: 'none' }}
+              placeholder="Username"
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#344767', marginLeft: 4 }}>Password</label>
+            <input
+              type=""
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              style={{ padding: '12px 16px', borderRadius: 12, border: '1px solid #d2d6da', fontSize: 14, outline: 'none' }}
+              placeholder="••••••••"
+            />
+          </div>
+          <button
+            type="submit"
+            style={{ marginTop: 12, padding: '14px', borderRadius: 12, background: 'linear-gradient(135deg, #344767, #4a6fa5)', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+          >
+            <LogIn size={18} /> Sign In
+          </button>
+        </form>
+      </motion.div>
     </div>
   );
 }
@@ -572,8 +666,6 @@ function BandwidthTooltip({ active, payload, label }: any) {
     </div>
   );
 }
-
-
 
 function PayloadTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;

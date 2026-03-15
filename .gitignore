@@ -45,3 +45,6 @@ build*/
 
 # Logs
 *.log
+
+# Environment variables
+.env/

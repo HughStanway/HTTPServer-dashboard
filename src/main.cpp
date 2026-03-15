@@ -1,17 +1,31 @@
 #include <httpserver>
-
+#include "auth.hpp"
+#include <fstream>
 #include <iostream>
 #include <sstream>
+#include <string>
 
 int main() {
+    // 0. Load credentials
+    Auth auth;
+    if (!auth.loadCredentials(".env/credentials")) {
+        return 1;
+    }
+
     // Initialize server
     HTTPServer::Server server("src/config.toml");
     server.installSignalHandlers();
 
     // 1. API: Metrics Endpoint
-    HTTPServer::Router::instance().addRoute("GET", "/api/metrics", [](const HTTPServer::HttpRequest& req) {
-        auto snapshot = HTTPServer::Metrics::instance().snapshot();
+    HTTPServer::Router::instance().addRoute("GET", "/api/metrics", [&](const HTTPServer::HttpRequest& req) {
+        if (!auth.isAuthorized(req)) {
+            HTTPServer::HttpResponse res;
+            return res.setStatus(HTTPServer::StatusCode::Unauthorized)
+                      .setBody("{\"error\":\"Unauthorized\"}")
+                      .addHeader("Content-Type", "application/json");
+        }
 
+        auto snapshot = HTTPServer::Metrics::instance().snapshot();
         std::stringstream json;
         json << "{"
              << "\"activeConnections\":" << snapshot.d_activeConnections << ","
@@ -32,12 +46,12 @@ int main() {
     });
 
     // 2. Static Assets Mapping 
-    // In production, Vite builds to 'dist/'. We serve those files under root or '/assets'
-    HTTPServer::Router::instance().addStaticDirectoryRoute("/", "frontend/dist/");
+    HTTPServer::Router::instance().addStaticDirectoryRoute("/assets", "frontend/dist/assets/");
 
-    // 3. SPA Fallback
-    // For any route not matched by API or static files, serve the index.html
-    HTTPServer::Router::instance().addRoute("GET", "/", [](const HTTPServer::HttpRequest& req) {
+    // 3. SPA Fallback / Dashboard Route
+    HTTPServer::Router::instance().addRoute("GET", "/", [&](const HTTPServer::HttpRequest& req) {
+        // We don't protect the initial HTML load because the frontend will handle the login screen
+        // and its own auth state. However, the API is protected.
         return HTTPServer::Responses::file(req, "frontend/dist/index.html");
     });
 
