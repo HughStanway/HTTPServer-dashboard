@@ -1,32 +1,32 @@
-#include <httpserver>
-
-#include "auth/auth.h"
-
 #include <fstream>
+#include <httpserver>
 #include <iostream>
 #include <sstream>
 #include <string>
 
+#include "auth/auth.h"
+
 int main() {
-    using namespace HTTPServerMetricsDashboard;
+  using namespace HTTPServerMetricsDashboard;
 
-    // 0. Load credentials
-    Auth auth;
-    if (!auth.loadCredentials(".env/credentials")) {
-        return 1;
-    }
+  // 0. Load credentials
+  Auth auth;
+  if (!auth.loadCredentials(".env/credentials")) {
+    return 1;
+  }
 
-    // Initialize server
-    HTTPServer::Server server("backend/src/config.toml");
-    server.installSignalHandlers();
+  // Initialize server
+  HTTPServer::Server server("backend/src/config.toml");
+  server.installSignalHandlers();
 
-    // 1. API: Metrics Endpoint
-    HTTPServer::Router::instance().addRoute("GET", "/api/metrics", [&](const HTTPServer::HttpRequest& req) {
+  // 1. API: Metrics Endpoint
+  HTTPServer::Router::instance().addRoute(
+      "GET", "/api/metrics", [&](const HTTPServer::HttpRequest& req) {
         if (!auth.isAuthorized(req)) {
-            HTTPServer::HttpResponse res;
-            return res.setStatus(HTTPServer::StatusCode::Unauthorized)
-                      .setBody("{\"error\":\"Unauthorized\"}")
-                      .addHeader("Content-Type", "application/json");
+          HTTPServer::HttpResponse res;
+          return res.setStatus(HTTPServer::StatusCode::Unauthorized)
+              .setBody("{\"error\":\"Unauthorized\"}")
+              .addHeader("Content-Type", "application/json");
         }
 
         auto snapshot = HTTPServer::Metrics::instance().snapshot();
@@ -40,25 +40,28 @@ int main() {
              << "\"responses5xx\":" << snapshot.d_responses5xx << ","
              << "\"bytesReceived\":" << snapshot.d_totalBytesReceived << ","
              << "\"bytesSent\":" << snapshot.d_totalBytesSent << ","
-             << "\"totalProcessingTimeMs\":" << snapshot.d_totalRequestProcessingTimeMs
-             << "}";
+             << "\"totalProcessingTimeMs\":"
+             << snapshot.d_totalRequestProcessingTimeMs << "}";
 
         HTTPServer::HttpResponse res;
         return res.setStatus(HTTPServer::StatusCode::OK)
-                  .setBody(json.str())
-                  .addHeader("Content-Type", "application/json");
-    });
+            .setBody(json.str())
+            .addHeader("Content-Type", "application/json");
+      });
 
-    // 2. Static Assets Mapping 
-    HTTPServer::Router::instance().addStaticDirectoryRoute("/assets", "frontend/dist/assets/");
+  // 2. Static Assets Mapping
+  HTTPServer::Router::instance().addStaticDirectoryRoute(
+      "/assets", "frontend/dist/assets/");
 
-    // 3. SPA Fallback / Dashboard Route
-    HTTPServer::Router::instance().addRoute("GET", "/", [&](const HTTPServer::HttpRequest& req) {
-        // We don't protect the initial HTML load because the frontend will handle the login screen
-        // and its own auth state. However, the API is protected.
+  // 3. SPA Fallback / Dashboard Route
+  HTTPServer::Router::instance().addRoute(
+      "GET", "/", [&](const HTTPServer::HttpRequest& req) {
+        // We don't protect the initial HTML load because the frontend will
+        // handle the login screen and its own auth state. However, the API is
+        // protected.
         return HTTPServer::Responses::file(req, "frontend/dist/index.html");
-    });
+      });
 
-    server.start();
-    return 0;
+  server.start();
+  return 0;
 }

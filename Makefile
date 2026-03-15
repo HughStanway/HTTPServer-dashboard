@@ -1,4 +1,6 @@
-.PHONY: all backend frontend clean run
+CLANG_FORMAT ?= clang-format
+
+.PHONY: all backend frontend clean run format format-check
 
 all: frontend backend
 
@@ -13,3 +15,11 @@ run: all
 
 clean:
 	rm -rf build frontend/dist frontend/node_modules
+
+format:
+	@find backend -type f \( -name "*.cpp" -o -name "*.h" \) \
+	-exec $(CLANG_FORMAT) -i {} +
+
+format-check:
+	@find backend -type f \( -name "*.cpp" -o -name "*.h" \) \
+	-exec $(CLANG_FORMAT) --dry-run --Werror {} +
