@@ -1,6 +1,11 @@
 # HTTPServer Dashboard
 
-A modern, high-performance HTTP server metrics dashboard built with C++ and React. This project provides real-time monitoring of server performance provided by the HTTPServer library.
+![License](https://img.shields.io/github/license/HughStanway/HTTPServer)
+![Stars](https://img.shields.io/github/stars/HughStanway/HTTPServer)
+![Tests](https://img.shields.io/github/actions/workflow/status/HughStanway/HTTPServer/build-and-test.yml?branch=main)
+![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)
+
+A modern, high-performance HTTP server metrics dashboard built with C++ and React. This project provides real-time monitoring of web server performance powered by the [HTTPServer](https://github.com/HughStanway/HTTPServer) library.
 
 ## Features
 
