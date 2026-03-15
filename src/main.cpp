@@ -12,8 +12,6 @@ int main() {
     HTTPServer::Router::instance().addRoute("GET", "/api/metrics", [](const HTTPServer::HttpRequest& req) {
         auto snapshot = HTTPServer::Metrics::instance().snapshot();
 
-        LOG_INFO("[Metrics API] Returning: " + std::to_string(snapshot.d_totalRequestProcessingTimeMs));
-
         std::stringstream json;
         json << "{"
              << "\"activeConnections\":" << snapshot.d_activeConnections << ","
@@ -27,10 +25,9 @@ int main() {
              << "\"totalProcessingTimeMs\":" << snapshot.d_totalRequestProcessingTimeMs
              << "}";
 
-        std::string jsonStr = json.str();
         HTTPServer::HttpResponse res;
         return res.setStatus(HTTPServer::StatusCode::OK)
-                  .setBody(jsonStr)
+                  .setBody(json.str())
                   .addHeader("Content-Type", "application/json");
     });
 
