@@ -3,6 +3,8 @@
 #include <httpserver>
 #include <string>
 
+namespace HTTPServerMetricsDashboard {
+
 class Auth {
 public:
     Auth() = default;
@@ -13,3 +15,5 @@ private:
     static std::string base64_encode(const std::string& in);
     std::string m_expectedAuthHeader;
 };
+
+} // namespace HTTPServerMetricsDashboard

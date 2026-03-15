@@ -1,6 +1,9 @@
-#include "auth.hpp"
+#include "auth.h"
+
 #include <fstream>
 #include <iostream>
+
+namespace HTTPServerMetricsDashboard {
 
 std::string Auth::base64_encode(const std::string& in) {
     static const char lookup[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456780+/";
@@ -43,3 +46,5 @@ bool Auth::isAuthorized(const HTTPServer::HttpRequest& req) const {
     }
     return false;
 }
+
+} // namespace HTTPServerMetricsDashboard

@@ -1,11 +1,15 @@
 #include <httpserver>
-#include "auth.hpp"
+
+#include "auth.h"
+
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
 
 int main() {
+    using namespace HTTPServerMetricsDashboard;
+
     // 0. Load credentials
     Auth auth;
     if (!auth.loadCredentials(".env/credentials")) {
