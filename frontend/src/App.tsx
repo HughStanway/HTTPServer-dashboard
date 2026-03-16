@@ -81,11 +81,34 @@ const formatMs = (ms: number): string => {
 const POLL_INTERVAL_MS = 2000;
 const MAX_HISTORY = 30;
 
+function useWindowSize() {
+  const [windowSize, setWindowSize] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
+
+  useEffect(() => {
+    function handleResize() {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    }
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return windowSize;
+}
+
 // ─── Main App ───────────────────────────────────────────────────────────────────
 function App() {
   const [auth, setAuth] = useState<string | null>(() => sessionStorage.getItem('dashboard_auth'));
   const [activeTab, setActiveTab] = useState<'overview' | 'server'>('overview');
   const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const { width } = useWindowSize();
+  const isMobile = width < 768;
+  const isTablet = width >= 768 && width < 1200;
   const [logs, setLogs] = useState<string[]>([]);
   const [autoScroll, setAutoScroll] = useState(true);
   const [history, setHistory] = useState<TimeseriesPoint[]>([]);
@@ -263,23 +286,33 @@ function App() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', maxWidth: 1600, margin: '0 auto', padding: '22px 10px', position: 'relative' }}>
+    <div style={{
+      minHeight: '100vh',
+      maxWidth: 1600,
+      margin: '0 auto',
+      padding: isMobile ? '16px 12px 100px' : '22px 20px',
+      position: 'relative'
+    }}>
 
       {/* ── Floating Tab Selector ─────────────────────────────────────── */}
       <div style={{
         position: 'fixed',
-        top: 24,
+        bottom: isMobile ? 24 : 'auto',
+        top: isMobile ? 'auto' : 24,
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 1000,
-        background: 'rgba(255, 255, 255, 0.7)',
-        backdropFilter: 'blur(12px)',
-        border: '1px solid rgba(255, 255, 255, 0.3)',
+        background: 'rgba(255, 255, 255, 0.8)',
+        backdropFilter: 'blur(16px)',
+        border: '1px solid rgba(255, 255, 255, 0.4)',
         padding: '6px',
-        borderRadius: '16px',
+        borderRadius: '20px',
         display: 'flex',
         gap: '4px',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)'
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+        width: isMobile ? 'calc(100% - 40px)' : 'auto',
+        maxWidth: isMobile ? '400px' : 'none',
+        justifyContent: isMobile ? 'center' : 'flex-start'
       }}>
         {[
           { id: 'overview', label: 'Overview', icon: Activity },
@@ -299,11 +332,13 @@ function App() {
                 border: 'none',
                 background: isActive ? 'linear-gradient(135deg, #344767, #4a6fa5)' : 'transparent',
                 color: isActive ? '#fff' : '#7b809a',
-                fontSize: '13px',
+                fontSize: isMobile ? '12px' : '13px',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                boxShadow: isActive ? '0 4px 12px rgba(52, 71, 103, 0.2)' : 'none'
+                boxShadow: isActive ? '0 4px 12px rgba(52, 71, 103, 0.2)' : 'none',
+                flex: isMobile ? 1 : 'none',
+                justifyContent: 'center'
               }}
             >
               <tab.icon size={16} />
@@ -314,12 +349,24 @@ function App() {
       </div>
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div>
+      <header style={{
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        justifyContent: 'space-between',
+        alignItems: isMobile ? 'stretch' : 'center',
+        marginBottom: isMobile ? 30 : 20,
+        gap: isMobile ? 20 : 0
+      }}>
+        <div style={{ textAlign: isMobile ? 'center' : 'left' }}>
           <p style={{ fontSize: 12, color: '#7b809a', margin: '0 0 4px' }}>HTTPServer</p>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: '#344767', margin: 0 }}>Server Metrics</h1>
+          <h1 style={{ fontSize: isMobile ? 22 : 24, fontWeight: 700, color: '#344767', margin: 0 }}>Server Metrics</h1>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'stretch' : 'center',
+          gap: 12
+        }}>
           <AnimatePresence>
             {error && (
               <motion.div
@@ -359,7 +406,13 @@ function App() {
           >
 
             {/* ── Summary Cards Row 1 ────────────────────────────────────────── */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 28, marginBottom: 32, paddingTop: 16 }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: isMobile ? 20 : 28,
+              marginBottom: 32,
+              paddingTop: 16
+            }}>
               <MetricCard
                 title="Requests/sec"
                 value={currentRps.toFixed(1)}
@@ -395,7 +448,12 @@ function App() {
             </div>
 
             {/* ── Summary Cards Row 2 ────────────────────────────────────────── */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 28, marginBottom: 32 }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: isMobile ? 20 : 28,
+              marginBottom: 32
+            }}>
               <MetricCard
                 title="Avg Request Size"
                 value={formatBytes(avgReqSizeCumulative)}
@@ -431,7 +489,11 @@ function App() {
             </div>
 
             {/* ── 4-Column Grid of Chart Cards ───────────────────────────────── */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 28 }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr 1fr' : 'repeat(auto-fit, minmax(360px, 1fr))',
+              gap: isMobile ? 20 : 28
+            }}>
 
               {/* RPS */}
               <SquareCard title="Requests per Second" subtitle="Live traffic throughput" delay={0.4}>
@@ -625,14 +687,15 @@ function App() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.3 }}
-            style={{ paddingTop: 20, textAlign: 'center' }}
+            style={{ paddingTop: isMobile ? 0 : 20, textAlign: 'center' }}
           >
-            <div style={{ padding: '0px 20px 10px' }}>
+            <div style={{ padding: isMobile ? '0 0 10px' : '0px 20px 10px' }}>
               <LogViewer
                 logs={logs}
                 autoScroll={autoScroll}
                 onToggleAutoScroll={() => setAutoScroll(!autoScroll)}
                 onClear={() => setLogs([])}
+                isMobile={isMobile}
               />
             </div>
           </motion.div>
@@ -648,11 +711,12 @@ function App() {
 
 // ─── Log Viewer Component ───────────────────────────────────────────────────
 
-function LogViewer({ logs, autoScroll, onToggleAutoScroll, onClear }: {
+function LogViewer({ logs, autoScroll, onToggleAutoScroll, onClear, isMobile }: {
   logs: string[];
   autoScroll: boolean;
   onToggleAutoScroll: () => void;
   onClear: () => void;
+  isMobile: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -676,7 +740,7 @@ function LogViewer({ logs, autoScroll, onToggleAutoScroll, onClear }: {
       borderRadius: 16,
       display: 'flex',
       flexDirection: 'column',
-      height: 'calc(85vh - 110px)',
+      height: isMobile ? 'calc(95vh - 200px)' : 'calc(85vh - 110px)',
       boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
       overflow: 'hidden',
       border: '1px solid #333'
