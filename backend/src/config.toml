@@ -9,4 +9,5 @@ enable_http_redirection = false
 
 [logging]
 log_level = "INFO"
-file_logging_enabled = false
+file_logging_enabled = true
+file_logging_path = "logs/server.log"

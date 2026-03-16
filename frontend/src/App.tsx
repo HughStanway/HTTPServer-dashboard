@@ -18,6 +18,9 @@ import {
   Download,
   Lock,
   LogIn,
+  LayoutGrid,
+  Trash2,
+  ChevronDown,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -81,7 +84,10 @@ const MAX_HISTORY = 30;
 // ─── Main App ───────────────────────────────────────────────────────────────────
 function App() {
   const [auth, setAuth] = useState<string | null>(() => sessionStorage.getItem('dashboard_auth'));
+  const [activeTab, setActiveTab] = useState<'overview' | 'server'>('overview');
   const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [logs, setLogs] = useState<string[]>([]);
+  const [autoScroll, setAutoScroll] = useState(true);
   const [history, setHistory] = useState<TimeseriesPoint[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [startTime] = useState<number>(Date.now());
@@ -153,6 +159,27 @@ function App() {
     }
   }, [auth]);
 
+  const fetchLogs = useCallback(async () => {
+    if (!auth || activeTab !== 'server') return;
+
+    try {
+      const response = await fetch('/api/logs', {
+        headers: { 'Authorization': auth }
+      });
+
+      if (response.status === 401) {
+        setAuth(null);
+        sessionStorage.removeItem('dashboard_auth');
+        return;
+      }
+
+      const data = await response.json();
+      setLogs(data.logs);
+    } catch (err) {
+      console.error('Failed to fetch logs:', err);
+    }
+  }, [auth, activeTab]);
+
   useEffect(() => {
     if (auth) {
       fetchMetrics();
@@ -160,6 +187,14 @@ function App() {
       return () => clearInterval(id);
     }
   }, [fetchMetrics, auth]);
+
+  useEffect(() => {
+    if (auth && activeTab === 'server') {
+      fetchLogs();
+      const id = setInterval(fetchLogs, POLL_INTERVAL_MS);
+      return () => clearInterval(id);
+    }
+  }, [fetchLogs, auth, activeTab]);
 
   // Handle Login
   const handleLogin = (base64Auth: string) => {
@@ -228,10 +263,58 @@ function App() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', maxWidth: 1600, margin: '0 auto', padding: '22px 10px' }}>
+    <div style={{ minHeight: '100vh', maxWidth: 1600, margin: '0 auto', padding: '22px 10px', position: 'relative' }}>
+
+      {/* ── Floating Tab Selector ─────────────────────────────────────── */}
+      <div style={{
+        position: 'fixed',
+        top: 24,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 1000,
+        background: 'rgba(255, 255, 255, 0.7)',
+        backdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255, 255, 255, 0.3)',
+        padding: '6px',
+        borderRadius: '16px',
+        display: 'flex',
+        gap: '4px',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)'
+      }}>
+        {[
+          { id: 'overview', label: 'Overview', icon: Activity },
+          { id: 'server', label: 'Server Logs', icon: LayoutGrid },
+        ].map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                borderRadius: '12px',
+                border: 'none',
+                background: isActive ? 'linear-gradient(135deg, #344767, #4a6fa5)' : 'transparent',
+                color: isActive ? '#fff' : '#7b809a',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: isActive ? '0 4px 12px rgba(52, 71, 103, 0.2)' : 'none'
+              }}
+            >
+              <tab.icon size={16} />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40 }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
           <p style={{ fontSize: 12, color: '#7b809a', margin: '0 0 4px' }}>HTTPServer</p>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: '#344767', margin: 0 }}>Server Metrics</h1>
@@ -264,269 +347,424 @@ function App() {
         </div>
       </header>
 
-      {/* ── Summary Cards Row 1 ────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 28, marginBottom: 32, paddingTop: 16 }}>
-        <MetricCard
-          title="Requests/sec"
-          value={currentRps.toFixed(1)}
-          subtitle={rpsDelta !== 0 ? `${rpsDelta > 0 ? '+' : ''}${rpsDelta.toFixed(1)} from last poll` : 'Stable'}
-          icon={Zap}
-          gradient="linear-gradient(135deg, #e67e22, #f39c12)"
-          delay={0}
-        />
-        <MetricCard
-          title="Active Connections"
-          value={metrics?.activeConnections ?? 0}
-          subtitle="Currently connected clients"
-          icon={Users}
-          gradient="linear-gradient(135deg, #27ae60, #2ecc71)"
-          delay={0.05}
-        />
-        <MetricCard
-          title="Avg Req. Processing Time"
-          value={formatMs(currentLatency)}
-          subtitle={latencyDelta !== 0 ? `${latencyDelta > 0 ? '+' : ''}${latencyDelta.toFixed(1)}ms from last poll` : 'Stable'}
-          icon={Clock}
-          gradient="linear-gradient(135deg, #e74c3c, #c0392b)"
-          delay={0.1}
-        />
-        <MetricCard
-          title="Total Requests"
-          value={metrics?.totalRequests ?? 0}
-          subtitle={`${successRate}% success rate`}
-          icon={BarChart3}
-          gradient="linear-gradient(135deg, #344767, #4a6fa5)"
-          delay={0.15}
-        />
-      </div>
+      <AnimatePresence mode="wait">
+        {activeTab === 'overview' ? (
+          <motion.div
+            key="overview"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+            style={{ paddingTop: 20 }}
+          >
 
-      {/* ── Summary Cards Row 2 ────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 28, marginBottom: 32 }}>
-        <MetricCard
-          title="Avg Request Size"
-          value={formatBytes(avgReqSizeCumulative)}
-          subtitle="Average inbound payload"
-          icon={Download}
-          gradient="linear-gradient(135deg, #2980b9, #3498db)"
-          delay={0.2}
-        />
-        <MetricCard
-          title="Avg Response Size"
-          value={formatBytes(avgResSizeCumulative)}
-          subtitle="Average outbound payload"
-          icon={Upload}
-          gradient="linear-gradient(135deg, #8e44ad, #9b59b6)"
-          delay={0.25}
-        />
-        <MetricCard
-          title="Processing Efficiency"
-          value={`${processingEfficiency} req/s`}
-          subtitle="Requests per second of CPU time"
-          icon={Cpu}
-          gradient="linear-gradient(135deg, #16a085, #1abc9c)"
-          delay={0.3}
-        />
-        <MetricCard
-          title="Total Data Transferred"
-          value={formatBytes(totalDataTransferred)}
-          subtitle={`↑ ${formatBytes(metrics?.bytesSent ?? 0)}  ↓ ${formatBytes(metrics?.bytesReceived ?? 0)}`}
-          icon={HardDrive}
-          gradient="linear-gradient(135deg, #2c3e50, #34495e)"
-          delay={0.35}
-        />
-      </div>
-
-      {/* ── 4-Column Grid of Chart Cards ───────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 28 }}>
-
-        {/* RPS */}
-        <SquareCard title="Requests per Second" subtitle="Live traffic throughput" delay={0.4}>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={history}>
-              <defs>
-                <linearGradient id="gRps" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#e67e22" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#e67e22" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-              <XAxis dataKey="time" stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} />
-              <YAxis stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} />
-              <Tooltip content={<CustomTooltip suffix=" req/s" />} />
-              <Area type="monotone" dataKey="rps" stroke="#e67e22" strokeWidth={2.5} fillOpacity={1} fill="url(#gRps)" dot={false} animationDuration={600} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </SquareCard>
-
-        {/* Processing Time */}
-        <SquareCard title="Avg Request Processing Time" subtitle="Server-side processing duration" delay={0.45}>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={history}>
-              <defs>
-                <linearGradient id="gProc" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#e74c3c" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#e74c3c" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-              <XAxis dataKey="time" stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} />
-              <YAxis stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} unit="ms" />
-              <Tooltip content={<CustomTooltip suffix="ms" />} />
-              <Area type="monotone" dataKey="avgLatency" stroke="#e74c3c" strokeWidth={2.5} fillOpacity={1} fill="url(#gProc)" dot={false} animationDuration={600} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </SquareCard>
-
-        {/* Active Connections */}
-        <SquareCard title="Active Connections" subtitle="Connected clients over time" delay={0.5}>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={history}>
-              <defs>
-                <linearGradient id="gConn" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#344767" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#344767" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-              <XAxis dataKey="time" stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} />
-              <YAxis stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} allowDecimals={false} />
-              <Tooltip content={<CustomTooltip suffix="" />} />
-              <Area type="stepAfter" dataKey="activeConnections" stroke="#344767" strokeWidth={2.5} fillOpacity={1} fill="url(#gConn)" dot={false} animationDuration={600} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </SquareCard>
-
-        {/* Network Bandwidth */}
-        <SquareCard title="Network Bandwidth" subtitle="Bytes sent & received" delay={0.55}>
-          <ResponsiveContainer width="100%" height={190}>
-            <AreaChart data={history}>
-              <defs>
-                <linearGradient id="gSent" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#27ae60" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#27ae60" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="gRecv" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#2980b9" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#2980b9" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-              <XAxis dataKey="time" stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} />
-              <YAxis stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} tickFormatter={(v: number) => formatBytes(v)} />
-              <Tooltip content={<BandwidthTooltip />} />
-              <Area type="monotone" dataKey="bytesSentRate" stroke="#27ae60" strokeWidth={2} fillOpacity={1} fill="url(#gSent)" dot={false} name="Sent/s" />
-              <Area type="monotone" dataKey="bytesRecvRate" stroke="#2980b9" strokeWidth={2} fillOpacity={1} fill="url(#gRecv)" dot={false} name="Recv/s" />
-            </AreaChart>
-          </ResponsiveContainer>
-          <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 11, color: '#7b809a' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><ArrowUpRight size={12} color="#27ae60" /> Sent: <strong style={{ color: '#344767' }}>{formatBytes(metrics?.bytesSent ?? 0)}</strong></span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><ArrowDownRight size={12} color="#2980b9" /> Recv: <strong style={{ color: '#344767' }}>{formatBytes(metrics?.bytesReceived ?? 0)}</strong></span>
-          </div>
-        </SquareCard>
-
-        {/* Error Rate */}
-        <SquareCard title="Error Rate" subtitle="4xx + 5xx as % of requests" delay={0.6}>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={history}>
-              <defs>
-                <linearGradient id="gErr" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#e74c3c" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#e74c3c" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-              <XAxis dataKey="time" stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} />
-              <YAxis stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} unit="%" domain={[0, 'auto']} />
-              <Tooltip content={<CustomTooltip suffix="%" />} />
-              <Area type="monotone" dataKey="errorRate" stroke="#e74c3c" strokeWidth={2.5} fillOpacity={1} fill="url(#gErr)" dot={false} animationDuration={600} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </SquareCard>
-
-        {/* Average Payload Sizes */}
-        <SquareCard title="Avg Payload Sizes" subtitle="Request vs response size per interval" delay={0.65}>
-          <ResponsiveContainer width="100%" height={190}>
-            <AreaChart data={history}>
-              <defs>
-                <linearGradient id="gReqSize" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#2980b9" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#2980b9" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="gResSize" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#8e44ad" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#8e44ad" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-              <XAxis dataKey="time" stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} />
-              <YAxis stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} tickFormatter={(v: number) => formatBytes(v)} />
-              <Tooltip content={<PayloadTooltip />} />
-              <Area type="monotone" dataKey="avgReqSize" stroke="#2980b9" strokeWidth={2} fillOpacity={1} fill="url(#gReqSize)" dot={false} name="Avg Request" animationDuration={600} />
-              <Area type="monotone" dataKey="avgResSize" stroke="#8e44ad" strokeWidth={2} fillOpacity={1} fill="url(#gResSize)" dot={false} name="Avg Response" animationDuration={600} />
-            </AreaChart>
-          </ResponsiveContainer>
-          <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 11, color: '#7b809a' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Download size={12} color="#2980b9" /> Req: <strong style={{ color: '#344767' }}>{formatBytes(avgReqSizeCumulative)}</strong></span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Upload size={12} color="#8e44ad" /> Res: <strong style={{ color: '#344767' }}>{formatBytes(avgResSizeCumulative)}</strong></span>
-          </div>
-        </SquareCard>
-
-        {/* Processing Efficiency */}
-        <SquareCard title="Processing Efficiency" subtitle="Current requests processed per second of CPU time" delay={0.7}>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={history}>
-              <defs>
-                <linearGradient id="gEff" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#16a085" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#16a085" stopOpacity={0.03} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-              <XAxis dataKey="time" stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} />
-              <YAxis stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} />
-              <Tooltip content={<CustomTooltip suffix=" req/s CPU" />} />
-              <Area type="monotone" dataKey="efficiency" stroke="#16a085" strokeWidth={2.5} fillOpacity={1} fill="url(#gEff)" dot={false} animationDuration={600} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </SquareCard>
-
-        {/* Response Status Donut */}
-        <SquareCard title="Response Status" subtitle={`${totalResponses.toLocaleString()} total responses`} delay={0.75}>
-          {statusData.length > 0 ? (
-            <>
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <ResponsiveContainer width="100%" height={75}>
-                  <PieChart>
-                    <Pie data={statusData} cx="50%" cy="50%" innerRadius={25} outerRadius={37} paddingAngle={3} dataKey="value" animationDuration={800}>
-                      {statusData.map((entry, i) => (
-                        <Cell key={i} fill={entry.color} stroke="none" />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-                <LegendItem label="2xx Success" count={metrics?.responses2xx ?? 0} color="#27ae60" icon={CheckCircle2} />
-                <LegendItem label="3xx Redirect" count={metrics?.responses3xx ?? 0} color="#2980b9" icon={TrendingUp} />
-                <LegendItem label="4xx Client" count={metrics?.responses4xx ?? 0} color="#f39c12" icon={AlertTriangle} />
-                <LegendItem label="5xx Server" count={metrics?.responses5xx ?? 0} color="#e74c3c" icon={XCircle} />
-              </div>
-              <div style={{ borderTop: '1px solid #e9ecef', marginTop: 12, paddingTop: 10, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#7b809a' }}>
-                <Shield size={14} color="#27ae60" />
-                Success rate: <strong style={{ color: '#344767' }}>{successRate}%</strong>
-              </div>
-            </>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, fontSize: 14, color: '#7b809a' }}>
-              No responses yet
+            {/* ── Summary Cards Row 1 ────────────────────────────────────────── */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 28, marginBottom: 32, paddingTop: 16 }}>
+              <MetricCard
+                title="Requests/sec"
+                value={currentRps.toFixed(1)}
+                subtitle={rpsDelta !== 0 ? `${rpsDelta > 0 ? '+' : ''}${rpsDelta.toFixed(1)} from last poll` : 'Stable'}
+                icon={Zap}
+                gradient="linear-gradient(135deg, #e67e22, #f39c12)"
+                delay={0}
+              />
+              <MetricCard
+                title="Active Connections"
+                value={metrics?.activeConnections ?? 0}
+                subtitle="Currently connected clients"
+                icon={Users}
+                gradient="linear-gradient(135deg, #27ae60, #2ecc71)"
+                delay={0.05}
+              />
+              <MetricCard
+                title="Avg Req. Processing Time"
+                value={formatMs(currentLatency)}
+                subtitle={latencyDelta !== 0 ? `${latencyDelta > 0 ? '+' : ''}${latencyDelta.toFixed(1)}ms from last poll` : 'Stable'}
+                icon={Clock}
+                gradient="linear-gradient(135deg, #e74c3c, #c0392b)"
+                delay={0.1}
+              />
+              <MetricCard
+                title="Total Requests"
+                value={metrics?.totalRequests ?? 0}
+                subtitle={`${successRate}% success rate`}
+                icon={BarChart3}
+                gradient="linear-gradient(135deg, #344767, #4a6fa5)"
+                delay={0.15}
+              />
             </div>
-          )}
-        </SquareCard>
-      </div>
+
+            {/* ── Summary Cards Row 2 ────────────────────────────────────────── */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 28, marginBottom: 32 }}>
+              <MetricCard
+                title="Avg Request Size"
+                value={formatBytes(avgReqSizeCumulative)}
+                subtitle="Average inbound payload"
+                icon={Download}
+                gradient="linear-gradient(135deg, #2980b9, #3498db)"
+                delay={0.2}
+              />
+              <MetricCard
+                title="Avg Response Size"
+                value={formatBytes(avgResSizeCumulative)}
+                subtitle="Average outbound payload"
+                icon={Upload}
+                gradient="linear-gradient(135deg, #8e44ad, #9b59b6)"
+                delay={0.25}
+              />
+              <MetricCard
+                title="Processing Efficiency"
+                value={`${processingEfficiency} req/s`}
+                subtitle="Requests per second of CPU time"
+                icon={Cpu}
+                gradient="linear-gradient(135deg, #16a085, #1abc9c)"
+                delay={0.3}
+              />
+              <MetricCard
+                title="Total Data Transferred"
+                value={formatBytes(totalDataTransferred)}
+                subtitle={`↑ ${formatBytes(metrics?.bytesSent ?? 0)}  ↓ ${formatBytes(metrics?.bytesReceived ?? 0)}`}
+                icon={HardDrive}
+                gradient="linear-gradient(135deg, #2c3e50, #34495e)"
+                delay={0.35}
+              />
+            </div>
+
+            {/* ── 4-Column Grid of Chart Cards ───────────────────────────────── */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 28 }}>
+
+              {/* RPS */}
+              <SquareCard title="Requests per Second" subtitle="Live traffic throughput" delay={0.4}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart data={history}>
+                    <defs>
+                      <linearGradient id="gRps" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#e67e22" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#e67e22" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                    <XAxis dataKey="time" stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} />
+                    <Tooltip content={<CustomTooltip suffix=" req/s" />} />
+                    <Area type="monotone" dataKey="rps" stroke="#e67e22" strokeWidth={2.5} fillOpacity={1} fill="url(#gRps)" dot={false} animationDuration={600} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </SquareCard>
+
+              {/* Processing Time */}
+              <SquareCard title="Avg Request Processing Time" subtitle="Server-side processing duration" delay={0.45}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart data={history}>
+                    <defs>
+                      <linearGradient id="gProc" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#e74c3c" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#e74c3c" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                    <XAxis dataKey="time" stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} unit="ms" />
+                    <Tooltip content={<CustomTooltip suffix="ms" />} />
+                    <Area type="monotone" dataKey="avgLatency" stroke="#e74c3c" strokeWidth={2.5} fillOpacity={1} fill="url(#gProc)" dot={false} animationDuration={600} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </SquareCard>
+
+              {/* Active Connections */}
+              <SquareCard title="Active Connections" subtitle="Connected clients over time" delay={0.5}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart data={history}>
+                    <defs>
+                      <linearGradient id="gConn" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#344767" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#344767" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                    <XAxis dataKey="time" stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <Tooltip content={<CustomTooltip suffix="" />} />
+                    <Area type="stepAfter" dataKey="activeConnections" stroke="#344767" strokeWidth={2.5} fillOpacity={1} fill="url(#gConn)" dot={false} animationDuration={600} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </SquareCard>
+
+              {/* Network Bandwidth */}
+              <SquareCard title="Network Bandwidth" subtitle="Bytes sent & received" delay={0.55}>
+                <ResponsiveContainer width="100%" height={190}>
+                  <AreaChart data={history}>
+                    <defs>
+                      <linearGradient id="gSent" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#27ae60" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#27ae60" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="gRecv" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#2980b9" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#2980b9" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                    <XAxis dataKey="time" stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} tickFormatter={(v: number) => formatBytes(v)} />
+                    <Tooltip content={<BandwidthTooltip />} />
+                    <Area type="monotone" dataKey="bytesSentRate" stroke="#27ae60" strokeWidth={2} fillOpacity={1} fill="url(#gSent)" dot={false} name="Sent/s" />
+                    <Area type="monotone" dataKey="bytesRecvRate" stroke="#2980b9" strokeWidth={2} fillOpacity={1} fill="url(#gRecv)" dot={false} name="Recv/s" />
+                  </AreaChart>
+                </ResponsiveContainer>
+                <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 11, color: '#7b809a' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><ArrowUpRight size={12} color="#27ae60" /> Sent: <strong style={{ color: '#344767' }}>{formatBytes(metrics?.bytesSent ?? 0)}</strong></span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><ArrowDownRight size={12} color="#2980b9" /> Recv: <strong style={{ color: '#344767' }}>{formatBytes(metrics?.bytesReceived ?? 0)}</strong></span>
+                </div>
+              </SquareCard>
+
+              {/* Error Rate */}
+              <SquareCard title="Error Rate" subtitle="4xx + 5xx as % of requests" delay={0.6}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart data={history}>
+                    <defs>
+                      <linearGradient id="gErr" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#e74c3c" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#e74c3c" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                    <XAxis dataKey="time" stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} unit="%" domain={[0, 'auto']} />
+                    <Tooltip content={<CustomTooltip suffix="%" />} />
+                    <Area type="monotone" dataKey="errorRate" stroke="#e74c3c" strokeWidth={2.5} fillOpacity={1} fill="url(#gErr)" dot={false} animationDuration={600} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </SquareCard>
+
+              {/* Average Payload Sizes */}
+              <SquareCard title="Avg Payload Sizes" subtitle="Request vs response size per interval" delay={0.65}>
+                <ResponsiveContainer width="100%" height={190}>
+                  <AreaChart data={history}>
+                    <defs>
+                      <linearGradient id="gReqSize" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#2980b9" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#2980b9" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="gResSize" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8e44ad" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#8e44ad" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                    <XAxis dataKey="time" stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} tickFormatter={(v: number) => formatBytes(v)} />
+                    <Tooltip content={<PayloadTooltip />} />
+                    <Area type="monotone" dataKey="avgReqSize" stroke="#2980b9" strokeWidth={2} fillOpacity={1} fill="url(#gReqSize)" dot={false} name="Avg Request" animationDuration={600} />
+                    <Area type="monotone" dataKey="avgResSize" stroke="#8e44ad" strokeWidth={2} fillOpacity={1} fill="url(#gResSize)" dot={false} name="Avg Response" animationDuration={600} />
+                  </AreaChart>
+                </ResponsiveContainer>
+                <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 11, color: '#7b809a' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Download size={12} color="#2980b9" /> Req: <strong style={{ color: '#344767' }}>{formatBytes(avgReqSizeCumulative)}</strong></span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Upload size={12} color="#8e44ad" /> Res: <strong style={{ color: '#344767' }}>{formatBytes(avgResSizeCumulative)}</strong></span>
+                </div>
+              </SquareCard>
+
+              {/* Processing Efficiency */}
+              <SquareCard title="Processing Efficiency" subtitle="Current requests processed per second of CPU time" delay={0.7}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart data={history}>
+                    <defs>
+                      <linearGradient id="gEff" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#16a085" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#16a085" stopOpacity={0.03} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                    <XAxis dataKey="time" stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} />
+                    <Tooltip content={<CustomTooltip suffix=" req/s CPU" />} />
+                    <Area type="monotone" dataKey="efficiency" stroke="#16a085" strokeWidth={2.5} fillOpacity={1} fill="url(#gEff)" dot={false} animationDuration={600} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </SquareCard>
+
+              {/* Response Status Donut */}
+              <SquareCard title="Response Status" subtitle={`${totalResponses.toLocaleString()} total responses`} delay={0.75}>
+                {statusData.length > 0 ? (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                      <ResponsiveContainer width="100%" height={75}>
+                        <PieChart>
+                          <Pie data={statusData} cx="50%" cy="50%" innerRadius={25} outerRadius={37} paddingAngle={3} dataKey="value" animationDuration={800}>
+                            {statusData.map((entry, i) => (
+                              <Cell key={i} fill={entry.color} stroke="none" />
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                      <LegendItem label="2xx Success" count={metrics?.responses2xx ?? 0} color="#27ae60" icon={CheckCircle2} />
+                      <LegendItem label="3xx Redirect" count={metrics?.responses3xx ?? 0} color="#2980b9" icon={TrendingUp} />
+                      <LegendItem label="4xx Client" count={metrics?.responses4xx ?? 0} color="#f39c12" icon={AlertTriangle} />
+                      <LegendItem label="5xx Server" count={metrics?.responses5xx ?? 0} color="#e74c3c" icon={XCircle} />
+                    </div>
+                    <div style={{ borderTop: '1px solid #e9ecef', marginTop: 12, paddingTop: 10, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#7b809a' }}>
+                      <Shield size={14} color="#27ae60" />
+                      Success rate: <strong style={{ color: '#344767' }}>{successRate}%</strong>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, fontSize: 14, color: '#7b809a' }}>
+                    No responses yet
+                  </div>
+                )}
+              </SquareCard>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="server"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+            style={{ paddingTop: 20, textAlign: 'center' }}
+          >
+            <div style={{ padding: '0px 20px 10px' }}>
+              <LogViewer
+                logs={logs}
+                autoScroll={autoScroll}
+                onToggleAutoScroll={() => setAutoScroll(!autoScroll)}
+                onClear={() => setLogs([])}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <footer style={{ marginTop: 36, paddingBottom: 6, textAlign: 'center', fontSize: 12, color: '#7b809a' }}>
         HTTPServer Metrics Dashboard
       </footer>
+    </div>
+  );
+}
+
+// ─── Log Viewer Component ───────────────────────────────────────────────────
+
+function LogViewer({ logs, autoScroll, onToggleAutoScroll, onClear }: {
+  logs: string[];
+  autoScroll: boolean;
+  onToggleAutoScroll: () => void;
+  onClear: () => void;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (autoScroll && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [logs, autoScroll]);
+
+  const getLogColor = (line: string) => {
+    if (line.includes('[ERROR]')) return '#ef4444';
+    if (line.includes('[WARNING]')) return '#f59e0b';
+    if (line.includes('[INFO]')) return '#3b82f6';
+    if (line.includes('[DEBUG]')) return '#6b7280';
+    return '#adb5bd';
+  };
+
+  return (
+    <div style={{
+      background: '#1e1e1e',
+      borderRadius: 16,
+      display: 'flex',
+      flexDirection: 'column',
+      height: 'calc(85vh - 110px)',
+      boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+      overflow: 'hidden',
+      border: '1px solid #333'
+    }}>
+      {/* Terminal Header */}
+      <div style={{
+        padding: '12px 20px',
+        background: '#252526',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderBottom: '1px solid #333'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff5f56' }} />
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ffbd2e' }} />
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#27c93f' }} />
+          </div>
+          <span style={{ fontSize: 12, color: '#858585', fontWeight: 500, fontFamily: 'monospace' }}>server.log</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <button
+            onClick={onToggleAutoScroll}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: autoScroll ? '#27c93f' : '#858585',
+              fontSize: 11,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              cursor: 'pointer',
+              fontWeight: 500
+            }}
+          >
+            <ChevronDown size={14} style={{ transform: autoScroll ? 'none' : 'rotate(-90deg)', transition: 'transform 0.2s' }} />
+            Auto-scroll
+          </button>
+          <button
+            onClick={onClear}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#858585',
+              fontSize: 11,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              cursor: 'pointer',
+              fontWeight: 500
+            }}
+          >
+            <Trash2 size={14} />
+            Clear
+          </button>
+        </div>
+      </div>
+
+      {/* Log Content */}
+      <div
+        ref={scrollRef}
+        style={{
+          flex: 1,
+          padding: '20px',
+          overflowY: 'auto',
+          fontFamily: '"SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace',
+          fontSize: 13,
+          lineHeight: 1.6,
+          backgroundColor: '#1a1a1a'
+        }}
+      >
+        {logs.length === 0 ? (
+          <div style={{ color: '#555', textAlign: 'center', marginTop: 100 }}>
+            Waiting for logs...
+          </div>
+        ) : (
+          logs.map((line, i) => {
+            const color = getLogColor(line);
+            return (
+              <div key={i} style={{ display: 'flex', gap: 12, borderBottom: '1px solid #222', padding: '2px 0' }}>
+                <span style={{ color: '#555', minWidth: 24, textAlign: 'right', userSelect: 'none' }}>{i + 1}</span>
+                <span style={{ color }}>{line}</span>
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }
@@ -573,7 +811,7 @@ function LoginScreen({ onLogin }: { onLogin: (auth: string) => void }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <label style={{ fontSize: 12, fontWeight: 600, color: '#344767', marginLeft: 4 }}>Password</label>
             <input
-              type=""
+              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
