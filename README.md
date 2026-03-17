@@ -86,7 +86,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
   <h3>Login Screen</h3>
-  <img src="resources/login_screen.png" width="800" alt="Login Screen">
+  <img src="resources/login_screen.png" width="350" alt="Login Screen">
   <p><em>A secure and elegant entry point that leverages Basic Authentication to protect your server's metrics data, featuring a modern design that integrates seamlessly with the overall dashboard aesthetic.</em></p>
   
   <br/>
