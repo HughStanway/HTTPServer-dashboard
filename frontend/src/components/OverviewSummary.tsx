@@ -1,4 +1,4 @@
-import { Zap, Users, Clock, BarChart3, Download, Upload, Cpu, HardDrive } from 'lucide-react';
+import { Zap, Users, Clock, BarChart3, Download, Upload, Shield, HardDrive } from 'lucide-react';
 import { MetricCard } from './MetricCard';
 import type { Metrics } from '../types';
 import { formatBytes, formatMs } from '../utils/format';
@@ -9,10 +9,9 @@ interface OverviewSummaryProps {
   rpsDelta: number;
   currentLatency: number;
   latencyDelta: number;
-  successRate: string;
   avgReqSizeCumulative: number;
   avgResSizeCumulative: number;
-  processingEfficiency: string;
+  reliabilityIndex: string;
   totalDataTransferred: number;
   isMobile: boolean;
 }
@@ -23,10 +22,9 @@ export function OverviewSummary({
   rpsDelta,
   currentLatency,
   latencyDelta,
-  successRate,
   avgReqSizeCumulative,
   avgResSizeCumulative,
-  processingEfficiency,
+  reliabilityIndex,
   totalDataTransferred,
   isMobile
 }: OverviewSummaryProps) {
@@ -67,7 +65,7 @@ export function OverviewSummary({
         <MetricCard
           title="Total Requests"
           value={metrics?.totalRequests ?? 0}
-          subtitle={`${successRate}% success rate`}
+          subtitle={`Total requests since server start`}
           icon={BarChart3}
           gradient="linear-gradient(135deg, #344767, #4a6fa5)"
           delay={0.15}
@@ -98,10 +96,10 @@ export function OverviewSummary({
           delay={0.25}
         />
         <MetricCard
-          title="Processing Efficiency"
-          value={`${processingEfficiency} req/s`}
-          subtitle="Requests per second of CPU time"
-          icon={Cpu}
+          title="Reliability Index"
+          value={`${reliabilityIndex}%`}
+          subtitle="Average request success rate"
+          icon={Shield}
           gradient="linear-gradient(135deg, #16a085, #1abc9c)"
           delay={0.3}
         />

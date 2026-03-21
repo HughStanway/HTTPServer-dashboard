@@ -20,5 +20,5 @@ export interface TimeseriesPoint {
   errorRate: number;
   avgReqSize: number;
   avgResSize: number;
-  efficiency: number;
+  reliability: number;
 }

@@ -178,21 +178,21 @@ export function OverviewCharts({
         </div>
       </SquareCard>
 
-      {/* Processing Efficiency */}
-      <SquareCard title="Processing Efficiency" subtitle="Current requests processed per second of CPU time" delay={0.7}>
+      {/* Reliability Index */}
+      <SquareCard title="Reliability Index" subtitle="Success rate (2xx/3xx) over time" delay={0.7}>
         <ResponsiveContainer width="100%" height={220}>
           <AreaChart data={history}>
             <defs>
-              <linearGradient id="gEff" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="gRel" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#16a085" stopOpacity={0.3} />
                 <stop offset="95%" stopColor="#16a085" stopOpacity={0.03} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
             <XAxis dataKey="time" stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} />
-            <YAxis stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} />
-            <Tooltip content={<CustomTooltip suffix=" req/s CPU" />} />
-            <Area type="monotone" dataKey="efficiency" stroke="#16a085" strokeWidth={2.5} fillOpacity={1} fill="url(#gEff)" dot={false} animationDuration={600} />
+            <YAxis stroke="#d1d5db" fontSize={9} tickLine={false} axisLine={false} domain={[0, 100]} unit="%" />
+            <Tooltip content={<CustomTooltip suffix="%" />} />
+            <Area type="monotone" dataKey="reliability" stroke="#16a085" strokeWidth={2.5} fillOpacity={1} fill="url(#gRel)" dot={false} animationDuration={600} />
           </AreaChart>
         </ResponsiveContainer>
       </SquareCard>

@@ -69,7 +69,7 @@ function Dashboard() {
 
         const avgReqSize = reqDelta > 0 ? recvDelta / reqDelta : 0;
         const avgResSize = reqDelta > 0 ? sentDelta / reqDelta : 0;
-        const efficiency = processingDelta > 0 ? (reqDelta / (processingDelta / 1000)) : 0;
+        const reliability = 100 - errorRate;
 
         const timeLabel = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
@@ -84,7 +84,7 @@ function Dashboard() {
             errorRate: Math.max(0, parseFloat(errorRate.toFixed(2))),
             avgReqSize: Math.max(0, parseFloat(avgReqSize.toFixed(0))),
             avgResSize: Math.max(0, parseFloat(avgResSize.toFixed(0))),
-            efficiency: Math.max(0, parseFloat(efficiency.toFixed(1))),
+            reliability: Math.max(0, parseFloat(reliability.toFixed(1))),
           }];
           return next.length > MAX_HISTORY ? next.slice(-MAX_HISTORY) : next;
         });
@@ -173,8 +173,7 @@ function Dashboard() {
     ? metrics.bytesSent / metrics.totalRequests : 0;
   const totalDataTransferred = metrics
     ? metrics.bytesReceived + metrics.bytesSent : 0;
-  const processingEfficiency = metrics && metrics.totalProcessingTimeMs > 0
-    ? (metrics.totalRequests / (metrics.totalProcessingTimeMs / 1000)).toFixed(1) : '0';
+  const reliabilityIndex = successRate;
 
   const uptimeSec = Math.floor((Date.now() - startTime) / 1000);
   const uptimeStr = uptimeSec < 60 ? `${uptimeSec}s`
@@ -224,10 +223,9 @@ function Dashboard() {
               rpsDelta={rpsDelta}
               currentLatency={currentLatency}
               latencyDelta={latencyDelta}
-              successRate={successRate}
               avgReqSizeCumulative={avgReqSizeCumulative}
               avgResSizeCumulative={avgResSizeCumulative}
-              processingEfficiency={processingEfficiency}
+              reliabilityIndex={reliabilityIndex}
               totalDataTransferred={totalDataTransferred}
               isMobile={isMobile}
             />
