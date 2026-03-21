@@ -15,9 +15,9 @@ add_executable(dashboard_server
     src/routes/route_index.cpp
 )
 
-target_include_directories(dashboard_server PRIVATE
-    /opt/homebrew/include
-)
+if(APPLE AND EXISTS "/opt/homebrew/include")
+    target_include_directories(dashboard_server PRIVATE /opt/homebrew/include)
+endif()
 
 target_link_libraries(dashboard_server PRIVATE
     HttpServer::httpserver_lib

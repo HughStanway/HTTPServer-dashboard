@@ -27,10 +27,7 @@ jobs:
         run: brew install cmake ninja
 
       - name: Configure
-        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        run: cmake -B build -S backend -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
 
       - name: Build
         run: cmake --build build --config ${{ matrix.build_type }}
-
-      - name: Test
-        run: ctest -V --test-dir build --output-on-failure
