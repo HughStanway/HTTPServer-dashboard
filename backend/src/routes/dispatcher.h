@@ -23,4 +23,4 @@ class Dispatcher {
 
 }  // namespace HTTPServerMetricsDashboard
 
-#endif  // INCLUDE_DISPATCHER_H
+#endif
