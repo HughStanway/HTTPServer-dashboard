@@ -18,16 +18,43 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build Frontend
+        run: |
+          cd frontend
+          npm install
+          npm run build
+
       - name: Install dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install cmake ninja-build
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build build-essential
+          git clone https://github.com/HughStanway/HTTPServer.git
+          cd HTTPServer
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+          sudo cmake --install build
 
       - name: Install dependencies (macOS)
         if: matrix.os == 'macos-latest'
-        run: brew install cmake ninja
+        run: |
+          brew install cmake ninja
+          git clone https://github.com/HughStanway/HTTPServer.git
+          cd HTTPServer
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+          sudo cmake --install build
 
       - name: Configure
         run: cmake -B build -S backend -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
 
       - name: Build
         run: cmake --build build --config ${{ matrix.build_type }}
+
+      - name: Test
+        run: ctest -V --test-dir build --output-on-failure
