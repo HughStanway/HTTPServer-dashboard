@@ -23,3 +23,23 @@ format:
 format-check:
 	@find backend -type f \( -name "*.cpp" -o -name "*.h" \) \
 	-exec $(CLANG_FORMAT) --dry-run --Werror {} +
+
+deploy:
+	chmod +x scripts/deploy.sh
+	./scripts/deploy.sh
+
+install-service:
+	@if [ "$$(uname -s)" != "Linux" ]; then \
+		echo "Error: This target is only supported on Linux (Ubuntu Server). Detected OS: $$(uname -s)"; \
+		exit 1; \
+	fi
+	@echo "Installing systemd service..."
+	sudo cp scripts/dashboard-server.service /etc/systemd/system/
+	sudo systemctl daemon-reload
+	sudo systemctl enable dashboard-server
+	@echo "--------------------------------------------------------"
+	@echo "Service installed and enabled."
+	@echo "IMPORTANT: Edit /etc/systemd/system/dashboard-server.service"
+	@echo "to set the correct User and WorkingDirectory."
+	@echo "Then run: sudo systemctl restart dashboard-server"
+	@echo "--------------------------------------------------------"

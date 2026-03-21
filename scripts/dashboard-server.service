@@ -1,0 +1,19 @@
+[Unit]
+Description=HTTP Server Dashboard
+After=network.target
+
+[Service]
+Type=simple
+# NOTE: Replace %USER% and %WORKING_DIR% with your server's details
+User=%USER%
+WorkingDirectory=%WORKING_DIR%
+ExecStart=%WORKING_DIR%/build/dashboard_server
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+# WantedBy=multi-user.target
+# Note: WantedBy is commented out to prevent auto-start on boot.
+# You can still manage the service manually with 'systemctl start/stop/restart'.
