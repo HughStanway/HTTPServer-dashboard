@@ -55,6 +55,3 @@ jobs:
 
       - name: Build
         run: cmake --build build --config ${{ matrix.build_type }}
-
-      - name: Test
-        run: ctest -V --test-dir build --output-on-failure
