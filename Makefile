@@ -1,6 +1,6 @@
 CLANG_FORMAT ?= clang-format
 
-.PHONY: all backend frontend clean run format format-check
+.PHONY: all backend frontend clean run format format-check docker-build docker-up docker-down
 
 all: frontend backend
 
@@ -25,8 +25,7 @@ format-check:
 	-exec $(CLANG_FORMAT) --dry-run --Werror {} +
 
 deploy:
-	chmod +x scripts/deploy.sh
-	./scripts/deploy.sh
+	./scripts/deploy_docker.sh
 
 install-service:
 	@if [ "$$(uname -s)" != "Linux" ]; then \
@@ -43,3 +42,12 @@ install-service:
 	@echo "to set the correct User and WorkingDirectory."
 	@echo "Then run: sudo systemctl restart dashboard-server"
 	@echo "--------------------------------------------------------"
+
+docker-build:
+	docker compose build
+
+docker-up:
+	docker compose up -d
+
+docker-down:
+	docker compose down

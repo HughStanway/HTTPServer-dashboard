@@ -1,0 +1,11 @@
+# Build artifacts
+build/
+backend/build/
+frontend/dist/
+frontend/node_modules/
+
+# Files
+.DS_Store
+.git/
+.env/
+logs/
