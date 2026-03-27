@@ -1,6 +1,6 @@
 CLANG_FORMAT ?= clang-format
 
-.PHONY: all backend frontend clean run format format-check docker-build docker-up docker-down
+.PHONY: all backend frontend clean run format format-check docker-build docker-up docker-down docker-deploy
 
 all: frontend backend
 
@@ -25,7 +25,7 @@ format-check:
 	-exec $(CLANG_FORMAT) --dry-run --Werror {} +
 
 deploy:
-	./scripts/deploy_docker.sh
+	./scripts/docker.sh
 
 install-service:
 	@if [ "$$(uname -s)" != "Linux" ]; then \
@@ -51,3 +51,6 @@ docker-up:
 
 docker-down:
 	docker compose down
+
+docker-deploy:
+	./scripts/deploy_docker.sh
