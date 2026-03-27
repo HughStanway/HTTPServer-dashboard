@@ -2,6 +2,7 @@
 
 #include <deque>
 #include <fstream>
+#include <httpserver>
 #include <sstream>
 
 namespace HTTPServerMetricsDashboard {
@@ -10,7 +11,7 @@ RouteLogs::RouteLogs() : Route("GET", "/api/logs") {}
 
 HTTPServer::HttpResponse RouteLogs::handle(
     const HTTPServer::HttpRequest& req) const {
-  std::ifstream logFile("logs/server.log");
+  std::ifstream logFile(HTTPServer::Config::get().kFileLoggingPath);
   std::deque<std::string> lines;
   std::string line;
   if (logFile.is_open()) {
