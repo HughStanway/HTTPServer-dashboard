@@ -20,9 +20,13 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /tmp
 RUN git clone https://github.com/HughStanway/HTTPServer.git
 WORKDIR /tmp/HTTPServer
-RUN cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-    && cmake --build build \
-    && cmake --install build
+RUN if [ -f "scripts/install_library.sh" ]; then \
+        chmod +x scripts/install_library.sh && ./scripts/install_library.sh; \
+    else \
+        cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+        && cmake --build build \
+        && cmake --install build; \
+    fi
 
 # Stage 3: Backend Builder
 FROM ubuntu:24.04 AS backend-builder
