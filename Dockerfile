@@ -68,9 +68,6 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 # Copy config
 COPY backend/src/config.toml ./backend/src/config.toml
 
-# Create required directories
-RUN mkdir -p logs .env
-
 # Expose HTTPS port
 EXPOSE 443
 
