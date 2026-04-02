@@ -1,8 +1,8 @@
 [ports]
-server_port = 443
+server_port = 3000
 
 [https]
-enable_https = true
+enable_https = false
 cert_file = ".env/cert.pem"
 key_file = ".env/key.pem"
 enable_http_redirection = false

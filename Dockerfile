@@ -68,7 +68,7 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 # Copy config
 COPY backend/src/config.toml ./backend/src/config.toml
 
-# Expose HTTPS port
+# Expose listening port
 EXPOSE 3000
 
 CMD ["./dashboard_server"]
