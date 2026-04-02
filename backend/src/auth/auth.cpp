@@ -42,7 +42,7 @@ bool Auth::loadCredentials(const std::string& path) {
 }
 
 bool Auth::isAuthorized(const HTTPServer::HttpRequest& req) const {
-  auto it = req.headers.find("Authorization");
+  auto it = req.headers.find("authorization");
   if (it != req.headers.end() && !it->second.empty()) {
     return it->second[0] == m_expectedAuthHeader;
   }
