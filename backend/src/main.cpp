@@ -13,12 +13,12 @@ int main() {
 
   // 0. Load credentials
   Auth auth;
-  if (!auth.loadCredentials(".env/credentials")) {
+  if (!auth.loadCredentials("credentials")) {
     return 1;
   }
 
   // Initialize server
-  HTTPServer::Server server("backend/src/config.toml");
+  HTTPServer::Server server("config.toml");
   server.installSignalHandlers();
 
   // Initialize and register routes with server
