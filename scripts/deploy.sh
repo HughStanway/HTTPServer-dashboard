@@ -69,11 +69,21 @@ sudo chmod +x /usr/local/bin/dashboard-server
 echo -e "${YELLOW}Ensuring /etc/dashboard-server exists...${NC}"
 sudo mkdir -p /etc/dashboard-server
 
-# Copy config files (adjust as needed)
+# Copy config files
 echo -e "${YELLOW}Syncing configuration files...${NC}"
 
-if [ -f "$PROJECT_DIR/.env" ]; then
-    sudo cp "$PROJECT_DIR/.env" /etc/dashboard-server/
+if [ -f "$PROJECT_DIR/.env/credentials" ]; then
+    sudo cp "$PROJECT_DIR/.env/credentials" /etc/dashboard-server/credentials
+fi
+
+if [ -f "$PROJECT_DIR/backend/src/config.toml" ]; then
+    sudo cp "$PROJECT_DIR/backend/src/config.toml" /etc/dashboard-server/config.toml
+fi
+
+if [ -d "$PROJECT_DIR/frontend/dist" ]; then
+    echo -e "${YELLOW}Syncing frontend build assets...${NC}"
+    sudo mkdir -p /etc/dashboard-server/frontend/dist
+    sudo cp -r "$PROJECT_DIR/frontend/dist/"* /etc/dashboard-server/frontend/dist/
 fi
 
 if [ -d "$PROJECT_DIR/logs" ]; then
