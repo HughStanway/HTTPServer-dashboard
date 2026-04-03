@@ -69,7 +69,7 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 COPY backend/src/config.toml ./config.toml
 
 # Copy credentials
-COPY .env ./credentials
+COPY .env/credentials ./credentials
 
 # Expose listening port
 EXPOSE 3000
