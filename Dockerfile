@@ -66,7 +66,10 @@ RUN chmod +x dashboard_server
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # Copy config
-COPY backend/src/config.toml ./backend/src/config.toml
+COPY backend/src/config.toml ./config.toml
+
+# Copy credentials
+COPY --from=backend-builder /app/backend/src/credentials ./credentials
 
 # Expose listening port
 EXPOSE 3000
