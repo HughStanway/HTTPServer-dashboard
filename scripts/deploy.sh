@@ -52,15 +52,35 @@ else
     sudo cmake --install .
 fi
 
-# [3/4] Build dashboard
-echo -e "${CYAN}[3/4] Building backend and frontend...${NC}"
+# [3/5] Build dashboard
+echo -e "${CYAN}[3/5] Building backend and frontend...${NC}"
 cd "$PROJECT_DIR"
 make all
 
-# [4/4] Restart service
-echo -e "${CYAN}[4/4] Restarting dashboard-server service...${NC}"
-sudo systemctl restart dashboard-server
+# [4/5] Install dashboard binary and config
+echo -e "${CYAN}[4/5] Installing dashboard-server...${NC}"
 
-echo -e "${BOLD}${GREEN}========================================${NC}"
-echo -e "${BOLD}${GREEN}         Deployment Complete!           ${NC}"
-echo -e "${BOLD}${GREEN}========================================${NC}"
+# Install binary
+echo -e "${YELLOW}Installing binary to /usr/local/bin...${NC}"
+sudo cp "$PROJECT_DIR/build/dashboard_server" /usr/local/bin/dashboard-server
+sudo chmod +x /usr/local/bin/dashboard-server
+
+# Ensure config directory exists
+echo -e "${YELLOW}Ensuring /etc/dashboard-server exists...${NC}"
+sudo mkdir -p /etc/dashboard-server
+
+# Copy config files (adjust as needed)
+echo -e "${YELLOW}Syncing configuration files...${NC}"
+
+if [ -f "$PROJECT_DIR/.env" ]; then
+    sudo cp "$PROJECT_DIR/.env" /etc/dashboard-server/
+fi
+
+if [ -d "$PROJECT_DIR/logs" ]; then
+    sudo mkdir -p /etc/dashboard-server/logs
+    sudo cp -r "$PROJECT_DIR/logs/"* /etc/dashboard-server/logs/ 2>/dev/null || true
+fi
+
+# [5/5] Restart service
+echo -e "${CYAN}[5/5] Restarting dashboard-server service...${NC}"
+sudo systemctl restart dashboard-server
