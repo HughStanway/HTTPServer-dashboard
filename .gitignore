@@ -48,6 +48,7 @@ build*/
 
 # Environment variables
 .env/
+credentials
 
 # Other
 .DS_Store
