@@ -76,8 +76,8 @@ if [ -f "$PROJECT_DIR/.env/credentials" ]; then
     sudo cp "$PROJECT_DIR/.env/credentials" /etc/dashboard-server/credentials
 fi
 
-if [ -f "$PROJECT_DIR/backend/src/config.toml" ]; then
-    sudo cp "$PROJECT_DIR/backend/src/config.toml" /etc/dashboard-server/config.toml
+if [ -f "$PROJECT_DIR/config.toml" ]; then
+    sudo cp "$PROJECT_DIR/config.toml" /etc/dashboard-server/config.toml
 fi
 
 if [ -d "$PROJECT_DIR/frontend/dist" ]; then
